@@ -1,130 +1,180 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // === DOM 元素获取 (保持不变) ===
-  const views = {
-    main: document.getElementById('mainView'),
-    settings: document.getElementById('settingsView')
-  };
-  const footers = {
-    main: document.getElementById('mainFooter'),
-    settings: document.getElementById('settingFooter')
-  };
-  const nav = {
-    back: document.getElementById('backBtn'),
-    setting: document.getElementById('settingBtn'),
-    title: document.getElementById('pageTitle')
-  };
+  // === 导航与视图元素 ===
+  const tabSpeed = document.getElementById('tabSpeed');
+  const tabGesture = document.getElementById('tabGesture');
+  const settingBtn = document.getElementById('settingBtn');
+  const backFromSettingsBtn = document.getElementById('backFromSettingsBtn');
 
+  const speedView = document.getElementById('speedView');
+  const speedSettingsView = document.getElementById('speedSettingsView');
+  const gestureView = document.getElementById('gestureView');
+
+  const speedFooter = document.getElementById('speedFooter');
+  const speedSettingsFooter = document.getElementById('speedSettingsFooter');
+  const gestureFooter = document.getElementById('gestureFooter');
+
+  // === 倍速管理相关元素 ===
   const input = document.getElementById('speedInput');
   const addBtn = document.getElementById('addBtn');
   const list = document.getElementById('speedList');
   const saveBtn = document.getElementById('saveBtn');
   const resetBtn = document.getElementById('resetBtn');
-  const status = document.getElementById('status');
   const quickAddContainer = document.getElementById('quickAddContainer');
-
   const chipmunkToggle = document.getElementById('chipmunkToggle');
-  const longPressInput = document.getElementById('longPressInput'); // 记得这里可能有长按输入的元素
-  const saveSettingBtn = document.getElementById('saveSettingBtn');
-  // 获取手势开关元素
+  const saveSpeedSettingsBtn = document.getElementById('saveSpeedSettingsBtn');
+
+  // === 手势相关元素 ===
   const gestureToggle = document.getElementById('gestureToggle');
-  // 【新增】获取新 DOM
   const mouseLongPressToggle = document.getElementById('mouseLongPressToggle');
   const mouseLongPressDelayInput = document.getElementById('mouseLongPressDelayInput');
+  const longPressInput = document.getElementById('longPressInput');
+  const saveSettingBtn = document.getElementById('saveSettingBtn');
+
+  // === 通用元素 ===
+  const status = document.getElementById('status');
+
   // === 配置常量 ===
-  const QUICK_RATES = [2.0, 3.0, 4.0, 5.0];
+  const QUICK_RATES = [0.75, 1.25, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0];
   const DEFAULT_RATES = [2.0, 1.5, 1.25, 1.0, 0.75, 0.5];
 
   // === 状态变量 ===
+  let currentTab = 'speed';
   let currentSpeeds = [];
   let userSettings = {
     enableChipmunk: true,
     longPressSpeed: 3.0,
-    enableGesture: true, // 默认开启
-    enableMouseLongPress: true,  // 默认开启左键长按
-    mouseLongPressDelay: 60      // 默认延迟 60 毫秒
+    enableGesture: true,
+    enableMouseLongPress: true,
+    mouseLongPressDelay: 280
   };
 
   init();
 
   function init() {
     chrome.storage.sync.get(['customSpeeds', 'settings'], (result) => {
-      // 1. 加载倍数列表
-      if (result.customSpeeds && result.customSpeeds.length > 0) {
-        currentSpeeds = result.customSpeeds;
+      // 1. 加载并规整倍数列表
+      if (result.customSpeeds && Array.isArray(result.customSpeeds) && result.customSpeeds.length > 0) {
+        currentSpeeds = result.customSpeeds
+          .map(r => Number(parseFloat(r).toFixed(2)))
+          .filter(r => !isNaN(r) && r > 0);
       } else {
         currentSpeeds = [...DEFAULT_RATES];
       }
 
-      // 2. 加载设置
+      if (!currentSpeeds.includes(1.0)) currentSpeeds.push(1.0);
+      currentSpeeds.sort((a, b) => b - a);
+
+      // 2. 加载用户设置
       if (result.settings) {
         userSettings = { ...userSettings, ...result.settings };
       }
-      // 同步开关UI状态
-      chipmunkToggle.checked = userSettings.enableChipmunk;
-      if (longPressInput) longPressInput.value = userSettings.longPressSpeed || 3.0;
-      gestureToggle.checked = userSettings.enableGesture !== false;
 
-      // 【新增】同步新 UI 状态
+      // 同步 UI 状态
+      chipmunkToggle.checked = userSettings.enableChipmunk !== false;
+      if (gestureToggle) gestureToggle.checked = userSettings.enableGesture !== false;
       if (mouseLongPressToggle) mouseLongPressToggle.checked = userSettings.enableMouseLongPress !== false;
-      if (mouseLongPressDelayInput) mouseLongPressDelayInput.value = userSettings.mouseLongPressDelay || 60;
+      if (mouseLongPressDelayInput) mouseLongPressDelayInput.value = userSettings.mouseLongPressDelay || 280;
+      if (longPressInput) longPressInput.value = userSettings.longPressSpeed || 3.0;
 
       renderAll();
     });
   }
 
-  // === 核心工具函数：检测并刷新 B站 ===
-  function reloadIfBilibili() {
-    // 查询当前激活的标签页
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0) return;
-      const tab = tabs[0];
+  // === 导航切换逻辑 (左侧切页，右侧设置) ===
+  function switchTab(tabName) {
+    if (tabName === 'gesture') {
+      currentTab = 'gesture';
+      tabSpeed.classList.remove('active');
+      tabSpeed.setAttribute('aria-selected', 'false');
+      tabGesture.classList.add('active');
+      tabGesture.setAttribute('aria-selected', 'true');
 
-      // 检查 URL 是否包含 bilibili.com
-      // 配置了 host_permissions，所以可以访问 B站 的 URL
-      if (tab.url && tab.url.includes('bilibili.com')) {
-        // 执行刷新
-        chrome.tabs.reload(tab.id);
+      speedView.classList.add('hidden');
+      speedSettingsView.classList.add('hidden');
+      speedFooter.classList.add('hidden');
+      speedSettingsFooter.classList.add('hidden');
 
-        // 可选：刷新后自动关闭 Popup 窗口，体验更流畅
-        // window.close();
-      }
-    });
-  }
+      gestureView.classList.remove('hidden');
+      gestureFooter.classList.remove('hidden');
 
-  // === 视图切换逻辑 (保持不变) ===
-  nav.setting.addEventListener('click', () => switchView('settings'));
-  nav.back.addEventListener('click', () => switchView('main'));
-
-  function switchView(viewName) {
-    if (viewName === 'settings') {
-      views.main.classList.add('hidden');
-      footers.main.classList.add('hidden');
-      views.settings.classList.remove('hidden');
-      footers.settings.classList.remove('hidden');
-      nav.back.classList.remove('hidden');
-      nav.setting.classList.add('hidden');
-      nav.title.textContent = '扩展设置';
-      showStatus('');
+      // 手势页无需独立设置面板，将齿轮按钮置灰
+      settingBtn.classList.add('is-disabled');
+      settingBtn.title = '手势设置已全部显示在面板中';
     } else {
-      views.settings.classList.add('hidden');
-      footers.settings.classList.add('hidden');
-      views.main.classList.remove('hidden');
-      footers.main.classList.remove('hidden');
-      nav.setting.classList.remove('hidden');
-      nav.back.classList.add('hidden');
-      nav.title.textContent = '倍速管理';
-      showStatus('');
+      currentTab = 'speed';
+      tabGesture.classList.remove('active');
+      tabGesture.setAttribute('aria-selected', 'false');
+      tabSpeed.classList.add('active');
+      tabSpeed.setAttribute('aria-selected', 'true');
+
+      gestureView.classList.add('hidden');
+      gestureFooter.classList.add('hidden');
+      speedSettingsView.classList.add('hidden');
+      speedSettingsFooter.classList.add('hidden');
+
+      speedView.classList.remove('hidden');
+      speedFooter.classList.remove('hidden');
+
+      settingBtn.classList.remove('is-disabled');
+      settingBtn.title = '倍速高级设置 (花栗鼠音效等)';
     }
+    showStatus('');
   }
 
-  // === 倍数增删逻辑 (保持不变) ===
-  function addSpeed(rate) {
-    if (!rate || isNaN(rate)) { showStatus('请输入有效的数字', true); return; }
-    if (rate <= 0) { showStatus('倍数必须大于 0', true); return; }
-    if (rate > 16) { showStatus('浏览器限制最大倍数为 16.0', true); return; }
+  function openSpeedSettings() {
+    speedView.classList.add('hidden');
+    speedFooter.classList.add('hidden');
+    gestureView.classList.add('hidden');
+    gestureFooter.classList.add('hidden');
 
-    if (!currentSpeeds.includes(rate)) {
-      currentSpeeds.push(rate);
+    speedSettingsView.classList.remove('hidden');
+    speedSettingsFooter.classList.remove('hidden');
+    showStatus('');
+  }
+
+  function closeSpeedSettings() {
+    speedSettingsView.classList.add('hidden');
+    speedSettingsFooter.classList.add('hidden');
+
+    speedView.classList.remove('hidden');
+    speedFooter.classList.remove('hidden');
+    showStatus('');
+  }
+
+  tabSpeed.addEventListener('click', () => switchTab('speed'));
+  tabGesture.addEventListener('click', () => switchTab('gesture'));
+
+  settingBtn.addEventListener('click', () => {
+    if (currentTab === 'speed') {
+      openSpeedSettings();
+    }
+  });
+
+  if (backFromSettingsBtn) {
+    backFromSettingsBtn.addEventListener('click', closeSpeedSettings);
+  }
+
+  // === 倍数增删逻辑 ===
+  function addSpeed(rate) {
+    if (rate === null || rate === undefined || isNaN(rate)) {
+      showStatus('请输入有效的数字', true);
+      return;
+    }
+
+    const cleanRate = Number(parseFloat(rate).toFixed(2));
+
+    if (cleanRate <= 0) {
+      showStatus('倍数必须大于 0', true);
+      return;
+    }
+    if (cleanRate > 16) {
+      showStatus('浏览器限制最大倍数为 16.0', true);
+      return;
+    }
+
+    if (!currentSpeeds.includes(cleanRate)) {
+      currentSpeeds.push(cleanRate);
+      currentSpeeds.sort((a, b) => b - a);
       renderAll();
       input.value = '';
       showStatus('');
@@ -133,8 +183,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function removeSpeed(rate) {
+    if (rate === 1.0) {
+      showStatus('1.0x 为标准基准倍速，不可移除', true);
+      return;
+    }
+    currentSpeeds = currentSpeeds.filter(s => Math.abs(s - rate) > 0.001);
+    renderAll();
+  }
+
   function renderAll() {
-    currentSpeeds.sort((a, b) => b - a);
     renderQuickAdd();
     renderList();
   }
@@ -142,7 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderQuickAdd() {
     quickAddContainer.innerHTML = '';
     QUICK_RATES.forEach(rate => {
-      if (!currentSpeeds.includes(rate)) {
+      const exists = currentSpeeds.some(s => Math.abs(s - rate) < 0.001);
+      if (!exists) {
         const btn = document.createElement('div');
         btn.className = 'quick-btn';
         btn.textContent = `+ ${rate}x`;
@@ -157,35 +216,37 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSpeeds.forEach(rate => {
       const item = document.createElement('div');
       item.className = 'speed-item';
-      if (rate === 1.0) {
+      if (Math.abs(rate - 1.0) < 0.001) {
         item.classList.add('locked');
+        item.title = '基准倍速 (不可删除)';
         item.innerHTML = `<span>${rate}x</span>`;
       } else {
-        item.innerHTML = `<span>${rate}x</span><button class="delete-btn">×</button>`;
-        item.querySelector('.delete-btn').onclick = () => removeSpeed(rate);
+        item.innerHTML = `<span>${rate}x</span><button class="delete-btn" title="删除">×</button>`;
+        item.querySelector('.delete-btn').onclick = (e) => {
+          e.stopPropagation();
+          removeSpeed(rate);
+        };
       }
       list.appendChild(item);
     });
   }
 
-  function removeSpeed(rate) {
-    if (rate === 1.0) return;
-    currentSpeeds = currentSpeeds.filter(s => s !== rate);
-    renderAll();
-  }
-
   // === 事件绑定 ===
-  addBtn.addEventListener('click', () => addSpeed(parseFloat(input.value)));
-  input.addEventListener('keypress', (e) => { if (e.key === 'Enter') addBtn.click(); });
+  addBtn.addEventListener('click', () => {
+    addSpeed(parseFloat(input.value));
+  });
 
-  // 【修改】保存倍数列表 -> 自动刷新
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addBtn.click();
+  });
+
+  // 保存倍数列表
   saveBtn.addEventListener('click', () => {
     if (!currentSpeeds.includes(1.0)) currentSpeeds.push(1.0);
+    currentSpeeds.sort((a, b) => b - a);
 
     chrome.storage.sync.set({ customSpeeds: currentSpeeds }, () => {
-      showStatus('✅ 保存成功，正在刷新页面...');
-      // 延迟 500ms 让用户看到提示，然后刷新
-      setTimeout(() => reloadIfBilibili(), 500);
+      showStatus('✅ 倍速设置已实时生效！');
     });
   });
 
@@ -193,41 +254,45 @@ document.addEventListener('DOMContentLoaded', () => {
     if (confirm('确定要恢复到初始倍数列表吗？')) {
       currentSpeeds = [...DEFAULT_RATES];
       renderAll();
-      showStatus('已恢复默认，请点击保存生效');
+      showStatus('已恢复默认，点击“保存倍速并应用”生效');
     }
   });
 
-  // 【修改】保存设置 -> 自动刷新
-  saveSettingBtn.addEventListener('click', () => {
-    userSettings.enableChipmunk = chipmunkToggle.checked;
-    userSettings.enableGesture = gestureToggle.checked;
+  // 保存倍速高级设置 (花栗鼠音效等)
+  if (saveSpeedSettingsBtn) {
+    saveSpeedSettingsBtn.addEventListener('click', () => {
+      userSettings.enableChipmunk = chipmunkToggle.checked;
+      chrome.storage.sync.set({ settings: userSettings }, () => {
+        showStatus('✅ 设置已实时生效！');
+        setTimeout(closeSpeedSettings, 400);
+      });
+    });
+  }
 
-    // 【新增】读取长按设置
-    if (mouseLongPressToggle) userSettings.enableMouseLongPress = mouseLongPressToggle.checked;
+  // 保存手势设置 (页面二)
+  saveSettingBtn.addEventListener('click', () => {
+    userSettings.enableGesture = gestureToggle.checked;
+    userSettings.enableMouseLongPress = mouseLongPressToggle.checked;
+
     if (mouseLongPressDelayInput) {
-      let delay = parseInt(mouseLongPressDelayInput.value);
-      if (isNaN(delay) || delay < 0) delay = 60;
+      let delay = parseInt(mouseLongPressDelayInput.value, 10);
+      if (isNaN(delay) || delay < 50) delay = 280;
       userSettings.mouseLongPressDelay = delay;
     }
 
     if (longPressInput) {
       let lpSpeed = parseFloat(longPressInput.value);
       if (!lpSpeed || lpSpeed <= 0) lpSpeed = 3.0;
-      userSettings.longPressSpeed = lpSpeed;
+      userSettings.longPressSpeed = Number(lpSpeed.toFixed(2));
     }
 
     chrome.storage.sync.set({ settings: userSettings }, () => {
-      showStatus('✅ 设置已保存，正在刷新...');
-      setTimeout(() => {
-        reloadIfBilibili();
-        switchView('main');
-      }, 500);
+      showStatus('✅ 手势设置已实时生效！');
     });
   });
 
   function showStatus(msg, isError = false) {
     status.textContent = msg;
-    status.style.color = isError ? '#FF6666' : '#00AEEC';
-    if (!isError && msg) setTimeout(() => status.textContent = '', 3000);
+    status.style.color = isError ? '#FF6699' : '#00AEEC';
   }
 });

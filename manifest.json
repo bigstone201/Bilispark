@@ -4,8 +4,8 @@
   "description": "__MSG_extensionDescription__",
   "default_locale": "zh_CN",
 
-  "version": "1.0.0",
-  "permissions": ["storage"],
+  "version": "2.0.0",
+  "permissions": ["storage", "activeTab"],
   "host_permissions": ["*://*.bilibili.com/*"],
   "action": {
     "default_popup": "src/popup/popup.html",

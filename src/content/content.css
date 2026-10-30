@@ -1,35 +1,160 @@
 /* src/content/content.css */
 
-/* 1. 限制倍速菜单高度 & 基础设置 */
+/* ==========================================
+   1. B站原生播放器倍速菜单美化与滚动限制
+   ========================================== */
 .bpx-player-ctrl-playbackrate-menu {
-    max-height: 220px !important;  /* 超过约6个选项的高度就截断 */
-    overflow-y: auto !important;   /* 允许垂直滚动 */
-    width: 70px !important;        /* 稍微加宽，给滚动条留位置 */
-
+  max-height: 220px !important;
+  overflow-y: auto !important;
+  min-width: 72px !important;
+  width: auto !important;
+  padding: 4px 0 !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
-/* 2. 滚动条整体设置 */
+/* Webkit 滚动条定制 */
 .bpx-player-ctrl-playbackrate-menu::-webkit-scrollbar {
-    width: 4px;
+  width: 4px;
 }
 
-/* 3. 滚动槽 (轨道) - 永远透明 */
 .bpx-player-ctrl-playbackrate-menu::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
-/* 4. 滚动滑块 - 默认透明 */
 .bpx-player-ctrl-playbackrate-menu::-webkit-scrollbar-thumb {
-    background: transparent;
-    border-radius: 4px;
+  background: transparent;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
 }
 
-/* 5. 关键：鼠标悬停在菜单上时，滑块才变色 */
 .bpx-player-ctrl-playbackrate-menu:hover::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.4); /* 半透明白色 */
+  background: rgba(255, 255, 255, 0.4);
 }
 
-/* 6. 鼠标按住滚动条时，颜色加深 */
 .bpx-player-ctrl-playbackrate-menu::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+/* ==========================================
+   2. 手势拖拽全局状态
+   ========================================== */
+body.bilispark-dragging,
+body.bilispark-dragging * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
+/* ==========================================
+   3. 手势快进/快退 HUD 极简胶囊 (专为看课微调设计，不挡课件)
+   ========================================== */
+#bilispark-drag-toast {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 17, 23, 0.84);
+  color: #ffffff;
+  padding: 7px 16px 8px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 100000;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+  animation: bilispark-hud-in 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bilispark-hud-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.bilispark-hud-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+}
+
+.bilispark-hud-offset {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.bilispark-hud-offset.forward {
+  color: #00AEEC;
+  text-shadow: 0 0 10px rgba(0, 174, 236, 0.45);
+}
+
+.bilispark-hud-offset.backward {
+  color: #FF6699;
+  text-shadow: 0 0 10px rgba(255, 102, 153, 0.45);
+}
+
+.bilispark-hud-sep {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+}
+
+.bilispark-hud-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilispark-hud-total {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilispark-hud-tip {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 7px;
+  border-radius: 9px;
+  margin-left: 2px;
+}
+
+.bilispark-hud-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.bilispark-hud-progress {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.06s ease;
+}
+
+.bilispark-hud-progress.forward {
+  background: linear-gradient(90deg, #00AEEC, #33C5FF);
+  box-shadow: 0 0 6px rgba(0, 174, 236, 0.5);
+}
+
+.bilispark-hud-progress.backward {
+  background: linear-gradient(90deg, #FF6699, #FFA3C2);
+  box-shadow: 0 0 6px rgba(255, 102, 153, 0.5);
 }

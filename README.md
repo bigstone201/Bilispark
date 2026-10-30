@@ -1,10 +1,10 @@
-# BiliTools 🚀
-优化bilibili的功能，如倍数设置
+# Bilispark 🚀
+优化bilibili的功能，如倍数设置，鼠标手势功能优化
 
 ![License](https://img.shields.io/github/license/bigstone/BiliTools)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 
-一个轻量级的 Edge/Chrome 浏览器扩展，旨在优化B站使用体验，如突破 Bilibili 播放器限制，解锁任意倍速播放（如 3.0x, 4.0x）。
+一个轻量级的 Edge/Chrome 浏览器扩展，旨在优化B站使用体验，突破 Bilibili 播放器限制，解锁任意倍速播放（如 3.0x, 4.0x）。
 
 ## ✨ 功能特性 (Features)
 - ⚡ **自定义倍速**：支持输入任意数值（0.1x - 16.0x）。
@@ -30,7 +30,7 @@
 
 ### 开发者模式安装（适用Chrome）
 
-1. 下载本仓库的 [最新 Release](这里填你的Release链接) 或点击 `Code` -> `Download ZIP`。
+1. 点击 `Code` -> `Download ZIP`。
 2. 解压下载的文件。
 3. 在 Chrome/Edge 浏览器地址栏输入 `chrome://extensions/`。
 4. 打开右上角的 **开发者模式 (Developer mode)** 开关。
